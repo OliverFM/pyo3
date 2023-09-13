@@ -619,6 +619,46 @@ pub struct PyRef<'p, T: PyClass> {
     inner: &'p PyCell<T>,
 }
 
+impl<'p, T, U> PyRef<'p, T>
+where
+    T: PyClass<BaseType = U>,
+    U: PyClass,
+{
+    /// ```rust
+    /// # use pyo3::prelude::*;
+    ///
+    /// #[pyclass]
+    /// struct Example {
+    ///     inner: ExampleInner
+    /// }
+    ///
+    /// #[pyclass]
+    /// struct ExampleInner {
+    ///     field: String
+    /// }
+    ///
+    /// #[pymethods]
+    /// impl Example {
+    ///     pub fn inner(mut slf: PyRef<'_, Self>) -> PyRef<'_, ExampleInner> {
+    ///         PyRef::map(slf, |val: Example| &val.inner) // This does not work currently
+    ///     }
+    /// }
+    /// ```
+    pub fn map<V, W, F>(orig: PyRef<'p, T>, f: F) -> PyRef<'p, W>
+    where
+        F: FnOnce(&T::BaseType) -> V,
+        W: PyClass,
+        V: PyClass + Into<&'p PyCell<W>>,
+    {
+        // let ref: &T::BaseType  = PyRef::as_ref(&orig);
+        let reference: &U = PyRef::as_ref(&orig);
+        let inner = f(reference);
+        PyRef {
+            inner: inner.into(),
+        }
+    }
+}
+
 impl<'p, T: PyClass> PyRef<'p, T> {
     /// Returns a `Python` token that is bound to the lifetime of the `PyRef`.
     pub fn py(&self) -> Python<'p> {
