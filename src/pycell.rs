@@ -640,18 +640,20 @@ where
     /// #[pymethods]
     /// impl Example {
     ///     pub fn inner(mut slf: PyRef<'_, Self>) -> PyRef<'_, ExampleInner> {
-    ///         PyRef::map(slf, |val: Example| &val.inner) // This does not work currently
+    ///         PyRef::map(slf, |val| &val.inner) // This does not work currently
     ///     }
     /// }
     /// ```
     pub fn map<V, W, F>(orig: PyRef<'p, T>, f: F) -> PyRef<'p, W>
     where
-        F: FnOnce(&T::BaseType) -> V,
+        F: FnOnce(&T) -> V,
         W: PyClass,
         V: PyClass + Into<&'p PyCell<W>>,
     {
         // let ref: &T::BaseType  = PyRef::as_ref(&orig);
-        let reference: &U = PyRef::as_ref(&orig);
+        let ptr: &UnsafeCell<T> = &(*orig.inner.contents.value);
+        let reference: &T;
+        unsafe { reference = &*ptr.get() };
         let inner = f(reference);
         PyRef {
             inner: inner.into(),
